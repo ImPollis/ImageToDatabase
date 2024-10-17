@@ -1,0 +1,56 @@
+﻿@page "/GetImage"
+
+@using System.Drawing
+@using ImageToDatabase.Data.Entities
+@using ImageToDatabase.Methods
+@using ImageToDatabase.Services
+
+@inject IImageService ImageService
+@inject ISnackbar Snackbar
+
+<PageTitle>Get</PageTitle>
+
+@if (!loading)
+{
+     <MudGrid Spacing="3" Justify="Justify.Center">
+         <MudItem>
+             <MudText Typo="Typo.h5">Last uploaded image.</MudText>
+         </MudItem>
+         <MudFlexBreak />
+         <MudItem>
+            <MudImage Alt="@imgAlt" Src="@imgSource" Elevation="25" Fluid="true" Class="rounded-lg" ObjectFit="ObjectFit.Cover" />
+         </MudItem>
+     </MudGrid>
+}
+else
+{
+    <div style="display: flex; justify-content: center; align-items: center;" class="mb-4">
+        <MudProgressCircular Color="MudBlazor.Color.Info" Indeterminate="true" />
+    </div>
+}
+
+
+@code {
+    Images? image;
+    bool loading;
+    string imgSource = "";
+    string imgAlt = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        //GET from database by your needs
+        try
+        {
+            image = await ImageService.GetLastImageAsync();
+            imgSource = "data:image/bmp;base64," + Convert.ToBase64String(image.ImageData);
+            imgAlt = image.ImageName;
+        }
+        catch
+        {
+            Snackbar.Add($"No image found.", Severity.Error);
+        }
+        loading = false;
+    }
+}

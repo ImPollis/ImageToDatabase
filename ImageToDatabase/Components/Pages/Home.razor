@@ -1,0 +1,15 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Hello, community!</MudText>
+<MudText Class="mb-8">This example is for uploading an image from file or from a camera of a cellphone.</MudText>
+
+<br />
+<MudText Typo="Typo.h5" GutterBottom="true">Brief description:</MudText>
+<br />
+<MudText Typo="Typo.body2">
+    Entity "Images" contains Id, byte[] ImageData (which translates to VARBINARY(MAX) in MSSQL) and ImageName. <br />
+    In ImageManipulation are located methods to check image orientation, scale it and convert to byte array as jpeg (for the lowest amount of space in DB).<br />
+    Getting the image from device rely on <i>accept="image/*; capture=camera"</i>. Take any image or "capture" for devices with camera (cellphone..).<br />
+</MudText>

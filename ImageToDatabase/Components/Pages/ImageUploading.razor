@@ -1,0 +1,135 @@
+﻿@page "/UploadImage"
+
+@using System.Drawing
+@using ImageToDatabase.Data.Entities
+@using ImageToDatabase.Methods
+@using ImageToDatabase.Services
+
+@inject IImageService ImageService
+@inject ISnackbar Snackbar
+
+<PageTitle>Post</PageTitle>
+
+<div style="display: flex; justify-content: center; align-items: center;" class="mb-4">
+    @if (!loading)
+    {
+        <InputFile OnChange="(x => GetFile(x))" accept="image/*; capture=camera" />
+    }
+    else
+    {
+        <MudProgressCircular Color="MudBlazor.Color.Info" Indeterminate="true" />
+    }
+    @if (fileOverLimit)
+    {
+        <MudText Typo="Typo.body2" Color="MudBlazor.Color.Error">File exceeds the limit size of @(maxFileSize / (1024L * 1024L)) MB.</MudText>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(imgSource))
+{
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudCard Elevation="10">
+            <MudCardHeader Style="justify-content: center;">
+                <MudText Typo="Typo.h6">Image to upload</MudText>
+            </MudCardHeader>
+            <MudCardContent Style="text-align: center;">
+                <MudImage Src="@imgSource" Alt="@imgAlt" Fluid="true" Elevation="10" Class="rounded-lg" ObjectFit="ObjectFit.Cover" />
+            </MudCardContent>
+            <MudCardActions Style="justify-content: center;">
+                <MudButton Color="MudBlazor.Color.Success" Variant="Variant.Filled" OnClick="UploadImage" Disabled="@(uploading || loading)">
+                    @if (uploading)
+                    {
+                        <MudProgressCircular Indeterminate="true" />
+                        <MudText>Uploading</MudText>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.TwoTone.Save" />
+                        <MudText>Upload</MudText>
+                    }
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudContainer>
+}
+
+
+@code {
+    string imgSource = "";
+    string imgAlt = "";
+    Images? imageToUpload;
+    long maxFileSize;
+
+    bool loading;
+    bool fileOverLimit;
+    bool uploading;
+
+    private async void GetFile(InputFileChangeEventArgs e)
+    {
+        loading = true;
+        fileOverLimit = false;
+        IBrowserFile file = e.File;
+        @if(file is not null)
+        {
+            try
+            {
+                //Define maximal size of uploaded image
+                maxFileSize = 20L * 1024L * 1024L; // 20MB max
+
+                //Copy current file to memory stream
+                MemoryStream ms = new MemoryStream();
+                await file.OpenReadStream(maxFileSize).CopyToAsync(ms);
+
+                //Make an Image from the file
+                var img = Image.FromStream(ms);
+                //Check for orientation and fix it if necessary
+                img = ImageManipulation.FixImageOrientation(img);
+                //Create a Bitmap to scale the image
+                var bmp = new Bitmap(img);
+                //Scale the image to desired size (max width, max height)
+                var resizedBmp = ImageManipulation.ScaleImage(bmp, 1920, 1200);
+                //Take bytes of current Bitmap and format it as Jpeg to take up the least amount of space
+                var imageBytes = ImageManipulation.ImageToJpegByte(resizedBmp);
+
+                //Source and Alt for html
+                imgSource = "data:image/bmp;base64," + Convert.ToBase64String(imageBytes);
+                imgAlt = file.Name;
+
+                //Make the entity to save in Database
+                imageToUpload = new Images()
+                    {
+                        ImageData = imageBytes,
+                        ImageName = file.Name + "-" + Guid.NewGuid() //Add GUID to get safe name
+                    };
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("exceeds the maximum"))
+                    fileOverLimit = true;
+                Console.WriteLine(ex.Message);
+            }
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    async Task UploadImage()
+    {
+        uploading = true;
+        //POST to database by your desired way
+        try
+        {
+            await ImageService.PostImageAsync(imageToUpload!);
+            Snackbar.Add($"Image uploaded successfully.", Severity.Success);
+            imgSource = "";
+            imgAlt = "";
+        }
+        catch(Exception e)
+        {
+            Snackbar.Add($"Error while uploading image: \n {e.Message}", Severity.Error);
+        }
+        uploading = false;
+        StateHasChanged();
+    }
+
+}
